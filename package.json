@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "API REST tipo Instagram con NestJS + TypeScript",
   "scripts": {
-    "build": "nest build",
+    "build": "npx @nestjs/cli build",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
-    "@nestjs/cli": "^10.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/jwt": "^10.0.0",
     "@nestjs/mongoose": "^10.1.0",
@@ -45,6 +44,7 @@
     "@types/node": "^20.0.0",
     "@types/passport-jwt": "^3.0.13",
     "@types/passport-local": "^1.0.38",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "@nestjs/cli": "^10.0.0"
   }
 }
