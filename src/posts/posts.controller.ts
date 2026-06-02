@@ -13,6 +13,8 @@ import { PostsService } from './posts.service';
 import { CreatePostDto, UpdatePostDto } from './dto/posts.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { GridFsService } from '../common/gridfs/gridfs.service';
+import { memoryStorage } from 'multer';
 
 function getUploadsDir() {
   const base = process.env.UPLOADS_DIR ||
@@ -37,7 +39,10 @@ const uploadStorage = diskStorage({
 @ApiTags('Posts')
 @Controller()
 export class PostsController {
-  constructor(private readonly postsService: PostsService) {}
+  constructor(
+  private readonly postsService: PostsService,
+  private readonly gridFsService: GridFsService,
+  ) {}
 
   @Get('posts/feed')
   @UseGuards(JwtAuthGuard)
@@ -95,15 +100,33 @@ export class PostsController {
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { caption: { type: 'string' }, media: { type: 'string', format: 'binary' } } } })
-  @UseInterceptors(FileInterceptor('media', { storage: uploadStorage }))
-  createPost(
+  @UseInterceptors(
+  FileInterceptor('media', {
+    storage: memoryStorage(),
+  }),
+  )
+
+  async createPost(
     @CurrentUser() user: any,
     @Body() dto: CreatePostDto,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    const port = process.env.PORT ?? 3000;
-    const mediaUrl = file ? `http://localhost:${port}/uploads/posts/${file.filename}` : undefined;
-    return this.postsService.createPost(user.userId, dto, mediaUrl);
+    let mediaUrl: string | undefined;
+
+    if (file) {
+      const fileId = await this.gridFsService.uploadFile(
+        file.buffer,
+        file.originalname,
+      );
+
+      mediaUrl = `/uploads/${fileId}`;
+    }
+
+    return this.postsService.createPost(
+      user.userId,
+      dto,
+      mediaUrl,
+    );
   }
 
   @Patch('posts/:postId')

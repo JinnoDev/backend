@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -23,6 +24,8 @@ const UPLOADS_DIR = process.env.UPLOADS_DIR ||
 export { UPLOADS_DIR };
 
 async function bootstrap() {
+  console.log('MONGODB_URI =', process.env.MONGODB_URI);
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api/v1');
 
@@ -45,6 +48,7 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`\n✅ Corriendo: http://localhost:${port}/docs`);
   console.log(`📁 Imágenes guardadas en: ${UPLOADS_DIR}\n`);
+  console.log('MONGODB_URI =', process.env.MONGODB_URI);
 }
 
 bootstrap();

@@ -6,6 +6,7 @@ import { Post, PostSchema } from './schemas/post.schema';
 import { Like, LikeSchema, Repost, RepostSchema, Save, SaveSchema } from './schemas/interactions.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { Follow, FollowSchema } from '../users/schemas/follow.schema';
+import { GridFsModule } from '../common/gridfs/gridfs.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { Follow, FollowSchema } from '../users/schemas/follow.schema';
       { name: Follow.name, schema: FollowSchema },
     ]),
     NotificationsModule,
+    GridFsModule,
   ],
   controllers: [PostsController],
   providers: [PostsService],
