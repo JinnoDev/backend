@@ -4,39 +4,21 @@ import {
   UseInterceptors, UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/users.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-
-function getAvatarsDir() {
-  const base = process.env.UPLOADS_DIR ||
-    (process.platform === 'win32'
-      ? 'C:\\socialconnect-uploads'
-      : join(process.env.HOME || '/tmp', 'socialconnect-uploads'));
-  return join(base, 'avatars');
-}
-
-const avatarStorage = diskStorage({
-  destination: (_req, _file, cb) => {
-    const dir = getAvatarsDir();
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    cb(null, `${unique}${extname(file.originalname)}`);
-  },
-});
+import { CloudinaryService } from '../common/cloudinary/cloudinary.service';
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+      private readonly usersService: UsersService,
+      private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
@@ -58,10 +40,9 @@ export class UsersController {
   @ApiOperation({ summary: 'Cambiar foto de perfil' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { avatar: { type: 'string', format: 'binary' } } } })
-  @UseInterceptors(FileInterceptor('avatar', { storage: avatarStorage }))
-  updateAvatar(@CurrentUser() user: any, @UploadedFile() file: Express.Multer.File) {
-    const port = process.env.PORT ?? 3000;
-    const avatarUrl = `http://localhost:${port}/uploads/avatars/${file.filename}`;
+  @UseInterceptors(FileInterceptor('avatar', { storage: memoryStorage() }))
+  async updateAvatar(@CurrentUser() user: any, @UploadedFile() file: Express.Multer.File) {
+    const avatarUrl = await this.cloudinaryService.uploadFile(file.buffer, 'avatars');
     return this.usersService.updateMe(user.userId, { avatar: avatarUrl });
   }
 
@@ -89,9 +70,9 @@ export class UsersController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getFollowers(
-    @Param('userId') userId: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+      @Param('userId') userId: string,
+      @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+      @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
     return this.usersService.getFollowers(userId, page, limit);
   }
@@ -100,9 +81,9 @@ export class UsersController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getFollowing(
-    @Param('userId') userId: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+      @Param('userId') userId: string,
+      @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+      @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
     return this.usersService.getFollowing(userId, page, limit);
   }

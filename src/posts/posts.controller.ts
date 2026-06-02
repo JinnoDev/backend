@@ -5,43 +5,20 @@ import {
   UseInterceptors, UploadedFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { CreatePostDto, UpdatePostDto } from './dto/posts.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { GridFsService } from '../common/gridfs/gridfs.service';
-import { memoryStorage } from 'multer';
-
-function getUploadsDir() {
-  const base = process.env.UPLOADS_DIR ||
-    (process.platform === 'win32'
-      ? 'C:\\socialconnect-uploads'
-      : join(process.env.HOME || '/tmp', 'socialconnect-uploads'));
-  return join(base, 'posts');
-}
-
-const uploadStorage = diskStorage({
-  destination: (_req, _file, cb) => {
-    const dir = getUploadsDir();
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    cb(null, `${unique}${extname(file.originalname)}`);
-  },
-});
+import { CloudinaryService } from '../common/cloudinary/cloudinary.service';
 
 @ApiTags('Posts')
 @Controller()
 export class PostsController {
   constructor(
-  private readonly postsService: PostsService,
-  private readonly gridFsService: GridFsService,
+      private readonly postsService: PostsService,
+      private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   @Get('posts/feed')
@@ -51,9 +28,9 @@ export class PostsController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getFeed(
-    @CurrentUser() user: any,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+      @CurrentUser() user: any,
+      @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+      @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
     return this.postsService.getFeed(user.userId, page, limit);
   }
@@ -63,8 +40,8 @@ export class PostsController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getExplorePosts(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(30), ParseIntPipe) limit: number,
+      @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+      @Query('limit', new DefaultValuePipe(30), ParseIntPipe) limit: number,
   ) {
     return this.postsService.getAllPosts(page, limit);
   }
@@ -76,9 +53,9 @@ export class PostsController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getMyPosts(
-    @CurrentUser() user: any,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(30), ParseIntPipe) limit: number,
+      @CurrentUser() user: any,
+      @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+      @Query('limit', new DefaultValuePipe(30), ParseIntPipe) limit: number,
   ) {
     return this.postsService.getPostsByUser(user.userId, page, limit);
   }
@@ -88,9 +65,9 @@ export class PostsController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   getPostsByUser(
-    @Param('userId') userId: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(30), ParseIntPipe) limit: number,
+      @Param('userId') userId: string,
+      @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+      @Query('limit', new DefaultValuePipe(30), ParseIntPipe) limit: number,
   ) {
     return this.postsService.getPostsByUser(userId, page, limit);
   }
@@ -100,33 +77,17 @@ export class PostsController {
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { caption: { type: 'string' }, media: { type: 'string', format: 'binary' } } } })
-  @UseInterceptors(
-  FileInterceptor('media', {
-    storage: memoryStorage(),
-  }),
-  )
-
+  @UseInterceptors(FileInterceptor('media', { storage: memoryStorage() }))
   async createPost(
-    @CurrentUser() user: any,
-    @Body() dto: CreatePostDto,
-    @UploadedFile() file?: Express.Multer.File,
+      @CurrentUser() user: any,
+      @Body() dto: CreatePostDto,
+      @UploadedFile() file?: Express.Multer.File,
   ) {
     let mediaUrl: string | undefined;
-
     if (file) {
-      const fileId = await this.gridFsService.uploadFile(
-        file.buffer,
-        file.originalname,
-      );
-
-      mediaUrl = `/uploads/${fileId}`;
+      mediaUrl = await this.cloudinaryService.uploadFile(file.buffer, 'posts');
     }
-
-    return this.postsService.createPost(
-      user.userId,
-      dto,
-      mediaUrl,
-    );
+    return this.postsService.createPost(user.userId, dto, mediaUrl);
   }
 
   @Patch('posts/:postId')
@@ -182,9 +143,9 @@ export class PostsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   getSaved(
-    @CurrentUser() user: any,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+      @CurrentUser() user: any,
+      @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+      @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
     return this.postsService.getSavedPosts(user.userId, page, limit);
   }

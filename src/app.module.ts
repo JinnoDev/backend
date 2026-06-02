@@ -7,10 +7,12 @@ import { CommentsModule } from './comments/comments.module';
 import { ChatsModule } from './chats/chats.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SearchModule } from './search/search.module';
+import { CloudinaryModule } from './common/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
     MongooseModule.forRoot(process.env.MONGODB_URI ?? 'mongodb://localhost:27017/socialconnect'),
+    CloudinaryModule,
     AuthModule,
     UsersModule,
     PostsModule,
