@@ -7,8 +7,8 @@ import { CreateChatDto, SendMessageDto } from './dto/chats.dto';
 @Injectable()
 export class ChatsService {
   constructor(
-    @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
-    @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
+      @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
+      @InjectModel(Message.name) private messageModel: Model<MessageDocument>,
   ) {}
 
   async getChats(userId: string, page: number, limit: number) {
@@ -29,6 +29,10 @@ export class ChatsService {
       if (existing) return existing;
     }
     return this.chatModel.create({ participants });
+  }
+
+  async getChatById(chatId: string): Promise<ChatDocument | null> {
+    return this.chatModel.findById(chatId);
   }
 
   async getMessages(userId: string, chatId: string, page: number, limit: number) {
@@ -67,8 +71,8 @@ export class ChatsService {
       throw new ForbiddenException('No eres parte de este chat');
 
     await this.messageModel.updateMany(
-      { chatId, readBy: { $ne: userId } },
-      { $push: { readBy: userId } },
+        { chatId, readBy: { $ne: userId } },
+        { $push: { readBy: userId } },
     );
     return { success: true };
   }
