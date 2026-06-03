@@ -23,25 +23,27 @@ export class PostsService {
     const skip = (page - 1) * limit;
     const following = await this.followModel.find({ followerId: userId }).select('followingId');
     const followingIds = following.map((f: any) => f.followingId);
-    const filter = { authorId: { $in: followingIds } };
-    const [data, total] = await Promise.all([
+    const filter = { authorId: { $in: followingIds, $ne: null, $exists: true } };
+    const [raw, total] = await Promise.all([
       this.postModel.find(filter).populate('authorId', 'username avatar name').sort({ createdAt: -1 }).skip(skip).limit(limit),
       this.postModel.countDocuments(filter),
     ]);
+    const data = raw.filter((p: any) => p.authorId && typeof p.authorId === 'object');
     return { data, page, limit, total, totalPages: Math.ceil(total / limit) };
   }
 
   // Explore: all posts
   async getAllPosts(page: number, limit: number) {
     const skip = (page - 1) * limit;
-    const [data, total] = await Promise.all([
-      this.postModel.find().populate('authorId', 'username avatar name').sort({ createdAt: -1 }).skip(skip).limit(limit),
-      this.postModel.countDocuments(),
+    const filter = { authorId: { $ne: null, $exists: true } };
+    const [raw, total] = await Promise.all([
+      this.postModel.find(filter).populate('authorId', 'username avatar name').sort({ createdAt: -1 }).skip(skip).limit(limit),
+      this.postModel.countDocuments(filter),
     ]);
+    const data = raw.filter(p => p.authorId && typeof p.authorId === 'object');
     return { data, page, limit, total, totalPages: Math.ceil(total / limit) };
   }
 
-  // Posts by a specific user (own posts + reposts shown in profile)
   async getPostsByUser(userId: string, page: number, limit: number) {
     const skip = (page - 1) * limit;
 
@@ -78,7 +80,6 @@ export class PostsService {
     const data = all.slice(skip, skip + limit);
     return { data, page, limit, total, totalPages: Math.ceil(total / limit) };
   }
-
   async createPost(userId: string, dto: CreatePostDto, mediaUrl?: string) {
     const post = await this.postModel.create({
       authorId: userId,
