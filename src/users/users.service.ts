@@ -15,9 +15,9 @@ export class UsersService {
   ) {}
 
   async getMe(userId: string) {
+    if (!userId || userId === 'undefined') throw new NotFoundException('Usuario no encontrado');
     const user = await this.userModel.findById(userId).select('-password');
     if (!user) throw new NotFoundException('Usuario no encontrado');
-    // Clean up any external placeholder avatar URLs stored in DB
     const blockedDomains = ['pravatar.cc', 'picsum.photos', 'placeholder.com', 'via.placeholder', 'unsplash.com'];
     if (user.avatar && blockedDomains.some(d => user.avatar.includes(d))) {
       await this.userModel.findByIdAndUpdate(userId, { avatar: '' });
@@ -35,6 +35,7 @@ export class UsersService {
   }
 
   async getPublicProfile(userId: string) {
+    if (!userId || userId === 'undefined') throw new NotFoundException('Usuario no encontrado');
     const user = await this.userModel.findById(userId).select('-password -email');
     if (!user) throw new NotFoundException('Usuario no encontrado');
     const blockedDomains = ['pravatar.cc', 'picsum.photos', 'placeholder.com', 'via.placeholder'];
@@ -61,7 +62,6 @@ export class UsersService {
     await this.userModel.findByIdAndUpdate(targetId,   { $inc: { followersCount: 1 } });
     await this.userModel.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } });
 
-    // Notify followed user
     await this.notificationsService.create({
       userId: targetId,
       actorId: followerId,
@@ -71,7 +71,6 @@ export class UsersService {
 
     return { success: true };
   }
-
   async unfollow(followerId: string, targetId: string) {
     const result = await this.followModel.findOneAndDelete({
       followerId,
